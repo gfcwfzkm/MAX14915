@@ -103,8 +103,8 @@ enum MAX14_ERROR{
 typedef struct
 {
 	enum MAX14_CRCEN crc_en:1;			// CRC is enabled or not
-	enum MAX14_ERROR coms_error;
-	enum MAX14_DIAGNOSTIC diag;
+	enum MAX14_ERROR coms_error;		// Make sure to check coms_error after each operation
+	enum MAX14_DIAGNOSTIC diag;			// diagnostics is updated with each SPI transaction to the chip
 	void *ioInterface;					// Pointer to the IO/Peripheral Interface library
 	// Any return value by the IO interface functions have to return zero when successful or
 	// non-zero when not successful.
@@ -116,22 +116,96 @@ typedef struct
 	uint8_t (*endTransaction)(void*);	// Finish the transaction / Release IO/Peripheral
 } max14_t;
 
+/**
+ * @brief Structure preparation
+ * 
+ * Sets up the \a max14_t structure and it's function pointers.
+ * Beware, that the chip select needs to be handled by your SPI
+ * library using the startTransaction and endTransaction functions
+ * 
+ * @param dout				Pointer to a \a max14_t structure
+ * @param ioComs 			Optional void pointer used by your SPI library
+ * @param startTransaction 	Function pointer to initiate the SPI transaction
+ * @param transceiveBytes	Function pointer to send/receive SPI data
+ * @param endTransaction 	Function pointer to end the SPI transaction
+ */
 void max14_initStruct(max14_t *dout, void *ioComs,
 				uint8_t (*startTransaction)(void*),
 				uint8_t (*transceiveBytes)(void*,uint8_t,uint8_t*,uint16_t),
 				uint8_t (*endTransaction)(void*));
 
+/**
+ * @brief Initialise the high-side-switch chip
+ * 
+ * Checks for a Power-On-Reset (POR) and sets up the chip's registers properly.
+ * If no POR encoured yet this function has been called, all registers
+ * will be set to their respective POR value.
+ * 
+ * It also checks if the chip is responding by reading back
+ * the configuration register. Returns an error otherwise.
+ * 
+ * @param dout 				Pointer to a \a max14_t structure
+ * @param crcen 			Enabling/disabling CRC with each transaction
+ * @return enum MAX14_ERROR Non-Zero if an error encountered. Check \a MAX14_ERROR
+ */
 enum MAX14_ERROR max14_init(max14_t *dout, enum MAX14_CRCEN crcen);
 
+/**
+ * @brief Reads from a register
+ * 
+ * Just reads the register. Performs CRC checks if enabled, which are
+ * stored in dout->coms_error.
+ * 
+ * @param dout 		Pointer to a \a max14_t structure
+ * @param regAddr	Register address to read
+ * @return uint8_t	Register value from said address
+ */
 uint8_t max14_readReg(max14_t *dout, uint8_t regAddr);
 
+/**
+ * @brief Writes into a register
+ * 
+ * Writes a value into a register. Performs CRC checks if enabled,
+ * which are stored in dout->coms_error.
+ * 
+ * @param dout 		Pointer to a \a max14_t structure
+ * @param regAddr	Register address to write
+ * @param val		Register value to write into said address
+ */
 void max14_writeReg(max14_t *dout, uint8_t regAddr, uint8_t val);
 
+/**
+ * @brief Reads the global fault register
+ * 
+ * Just reads and returns the global fault register as an enum \a MAX14_GLOBALFAULT.
+ * 
+ * @param dout 						Pointer to a \a max14_t structure
+ * @return enum MAX14_GLOBALFAULT 	Enum containing possible faults & errors
+ */
 enum MAX14_GLOBALFAULT max14_getGlobalFault(max14_t *dout);
 
+/**
+ * @brief Sets the 8 outputs 
+ * 
+ * Directly sets the out high-side switches
+ * 
+ * @param dout 					Pointer to a \a max14_t structure
+ * @param val 					Value to turn on/off
+ * @return enum MAX14_ERROR 	Non-Zero if an error encountered. Check \a MAX14_ERROR
+ */
 enum MAX14_ERROR max14_setOutput(max14_t *dout, uint8_t val);
 
-enum MAX14_ERROR max14_setWireBreak(max14_t *dout, uint8_t wirebreakPins);
+/**
+ * @brief Sets up wire-break parameters
+ * 
+ * Configures the wire-break detection feature
+ * ! Not yet fully implemented !
+ * 
+ * @param dout 				Pointer to a \a max14_t structure
+ * @param wirebreakPins 	Pins to perform wire-break detection on
+ * @return enum MAX14_ERROR Non-Zero if an error encountered. Check \a MAX14_ERROR
+ */
+//enum MAX14_ERROR max14_setWireBreak(max14_t *dout, uint8_t wirebreakPins);
 
 
 
